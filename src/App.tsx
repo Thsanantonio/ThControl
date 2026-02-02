@@ -301,7 +301,7 @@ const App: React.FC = () => {
   );
 };
 
-const SyncBadge: React.FC<{ isSyncing: boolean, error: boolean, onRetry: () => void }> = ({ isSyncing, error, onRetry }) => (
+const SyncBadge: React.FC<{ isSyncing: boolean, error: boolean, onRetry: () => void }> = ({ isSyncing, error }) => (
     <div className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${error ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-gray-100 border-gray-200 text-slate-500'}`}>
         {isSyncing ? <RefreshCw size={16} className="text-yellow-500 animate-spin" /> : error ? <WifiOff size={16} /> : <Cloud size={16} className="text-emerald-500" />}
         <span className="text-[10px] font-black uppercase tracking-widest">

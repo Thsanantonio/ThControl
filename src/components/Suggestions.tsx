@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppState, Suggestion, UserRole } from '../types';
-import { MessageSquare, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle } from 'lucide-react';
 
 interface SuggestionsProps {
   state: AppState;
