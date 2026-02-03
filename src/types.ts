@@ -15,6 +15,7 @@ export interface House {
   name: string;
   owner: string;
   balance: number;
+  street: string;
 }
 
 export interface Payment {
@@ -24,6 +25,10 @@ export interface Payment {
   date: string;
   concept: string;
   method: string;
+  referenciaBancaria?: string;
+  montoBs?: number;
+  tasaCambio?: number;
+  totalUsd?: number;
 }
 
 export interface Expense {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserRole, House } from '../types';
-import { CONDO_KEY } from '../constants';
+import { ADMIN_KEYS, RESIDENT_KEY } from '../constants';
 import { LogIn, Key, Home } from 'lucide-react';
 
 interface LoginProps {
@@ -9,18 +9,27 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
-  const [role, setRole] = useState<UserRole>(UserRole.ADMIN);
+  const [role, setRole] = useState<UserRole>(UserRole.RESIDENT);
   const [username, setUsername] = useState('');
   const [condoKey, setCondoKey] = useState('');
   const [houseId, setHouseId] = useState('');
   const [blobId, setBlobId] = useState('');
+  const [selectedStreet, setSelectedStreet] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (condoKey !== CONDO_KEY) {
-      alert('Clave del condominio incorrecta');
-      return;
+    // Validar clave según rol
+    if (role === UserRole.ADMIN) {
+      if (!ADMIN_KEYS.includes(condoKey)) {
+        alert('Clave de administrador incorrecta. Usa Admin1 o Admin2');
+        return;
+      }
+    } else {
+      if (condoKey !== RESIDENT_KEY) {
+        alert('Clave de residente incorrecta. Usa VecinoTH');
+        return;
+      }
     }
 
     if (!username.trim()) {
@@ -35,6 +44,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
 
     onLogin(role, username, condoKey, houseId || undefined, blobId || undefined);
   };
+
+  const filteredHouses = selectedStreet 
+    ? houses.filter(h => h.street === selectedStreet)
+    : houses;
+
+  const streets = ['Calle A', 'Calle B', 'Calle C', 'Calle P'];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 flex items-center justify-center p-4">
@@ -90,35 +105,59 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
 
           <div>
             <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
-              <Key size={16} /> Clave del Condominio
+              <Key size={16} /> Clave
             </label>
             <input
               type="password"
               value={condoKey}
               onChange={(e) => setCondoKey(e.target.value)}
               className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-              placeholder="Clave compartida"
+              placeholder={role === UserRole.ADMIN ? "Admin1 o Admin2" : "VecinoTH"}
             />
+            <p className="text-xs text-slate-500 mt-1">
+              {role === UserRole.ADMIN ? "Usa Admin1 o Admin2" : "Usa VecinoTH"}
+            </p>
           </div>
 
           {role === UserRole.RESIDENT && (
-            <div>
-              <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
-                <Home size={16} /> Tu Casa
-              </label>
-              <select
-                value={houseId}
-                onChange={(e) => setHouseId(e.target.value)}
-                className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-              >
-                <option value="">Selecciona tu casa</option>
-                {houses.map(house => (
-                  <option key={house.id} value={house.id}>
-                    {house.name} - {house.owner}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Calle</label>
+                <select
+                  value={selectedStreet}
+                  onChange={(e) => {
+                    setSelectedStreet(e.target.value);
+                    setHouseId('');
+                  }}
+                  className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
+                >
+                  <option value="">Selecciona tu calle</option>
+                  {streets.map(street => (
+                    <option key={street} value={street}>{street}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedStreet && (
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
+                    <Home size={16} /> Tu Casa
+                  </label>
+                  <select
+                    value={houseId}
+                    onChange={(e) => setHouseId(e.target.value)}
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
+                  >
+                    <option value="">Selecciona tu casa</option>
+                    {filteredHouses.map(house => (
+                      <option key={house.id} value={house.id}>
+                        {house.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
           )}
 
           <div>
