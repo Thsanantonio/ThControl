@@ -12,7 +12,7 @@ const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpd
   const [message, setMessage] = useState('');
   const isAdmin = state.user?.role === UserRole.ADMIN;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!message.trim()) {
@@ -20,12 +20,28 @@ const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpd
       return;
     }
 
+    if (!state.user?.houseId && !isAdmin) {
+      alert('Error: No se pudo identificar tu casa');
+      return;
+    }
+
+    // Capturar IP del usuario
+    let ipAddress = '';
+    try {
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipRes.json();
+      ipAddress = ipData.ip;
+    } catch (error) {
+      console.error('No se pudo obtener la IP:', error);
+    }
+
     const suggestion: Suggestion = {
       id: Date.now().toString(),
       houseId: state.user?.houseId || 'admin',
       message: message.trim(),
       date: new Date().toISOString(),
-      status: 'pending'
+      status: 'pending',
+      ipAddress
     };
 
     onAddSuggestion(suggestion);
@@ -44,6 +60,16 @@ const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpd
         <div className="bg-gray-200 rounded-2xl p-6 mb-8 border-2 border-gray-300">
           <h2 className="text-xl font-bold text-slate-800 mb-6">Nueva Sugerencia</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold mb-2 text-slate-700">Tu Casa</label>
+              <input
+                type="text"
+                value={state.houses.find(h => h.id === state.user?.houseId)?.name || ''}
+                className="w-full p-4 rounded-xl border-2 border-gray-300 bg-gray-100 text-slate-600 font-bold"
+                disabled
+              />
+            </div>
+            
             <div>
               <label className="block text-sm font-bold mb-2 text-slate-700">Tu Mensaje</label>
               <textarea
@@ -83,7 +109,7 @@ const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpd
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-800">
-                        {house ? `${house.name} - ${house.owner}` : 'Administrador'}
+                        {house ? house.name : 'Administrador'}
                       </h3>
                       <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
                         <Clock size={14} />
@@ -95,6 +121,9 @@ const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpd
                           minute: '2-digit'
                         })}
                       </div>
+                      {isAdmin && suggestion.ipAddress && (
+                        <p className="text-xs text-slate-500 mt-1">IP: {suggestion.ipAddress}</p>
+                      )}
                     </div>
                   </div>
                   
@@ -104,7 +133,7 @@ const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpd
                 <p className="text-slate-700 leading-relaxed mb-4 ml-15">{suggestion.message}</p>
 
                 {isAdmin && (
-                  <div className="flex gap-2 ml-15">
+                  <div className="flex gap-2 ml-15 flex-wrap">
                     {suggestion.status !== 'reviewed' && (
                       <button
                         onClick={() => onUpdateStatus(suggestion.id, 'reviewed')}

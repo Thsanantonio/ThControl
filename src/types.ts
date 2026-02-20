@@ -5,8 +5,6 @@ export enum UserRole {
 
 export interface User {
   role: UserRole;
-  username: string;
-  condoKey: string;
   houseId?: string;
 }
 
@@ -18,17 +16,24 @@ export interface House {
   street: string;
 }
 
+export enum PaymentType {
+  ORDINARIA = 'Cuota Ordinaria mensual',
+  EXTRAORDINARIA = 'Cuota Extraordinaria'
+}
+
 export interface Payment {
   id: string;
   houseId: string;
   amount: number;
   date: string;
-  concept: string;
+  paymentType: PaymentType;
+  extraordinaryReason?: string;
   method: string;
   referenciaBancaria?: string;
   montoBs?: number;
   tasaCambio?: number;
   totalUsd?: number;
+  receiptUrl?: string;
 }
 
 export interface Expense {
@@ -37,6 +42,10 @@ export interface Expense {
   amount: number;
   date: string;
   category: string;
+  montoBs?: number;
+  tasaCambio?: number;
+  totalUsd?: number;
+  invoiceUrl?: string;
 }
 
 export interface Suggestion {
@@ -45,6 +54,7 @@ export interface Suggestion {
   message: string;
   date: string;
   status: 'pending' | 'reviewed' | 'resolved';
+  ipAddress?: string;
 }
 
 export interface AppState {
@@ -53,5 +63,4 @@ export interface AppState {
   payments: Payment[];
   expenses: Expense[];
   suggestions: Suggestion[];
-  googleScriptUrl: string;
 }

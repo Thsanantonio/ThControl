@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppState, Payment } from '../types';
-import { Plus, Trash2, Calendar, CreditCard } from 'lucide-react';
+import { AppState, Payment, PaymentType } from '../types';
+import { Plus, Trash2, Calendar, CreditCard, Upload, FileText } from 'lucide-react';
 
 interface PaymentsProps {
   state: AppState;
@@ -12,12 +12,15 @@ interface PaymentsProps {
 const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePayment, isAdmin }) => {
   const [showForm, setShowForm] = useState(false);
   const [houseId, setHouseId] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentType, setPaymentType] = useState<PaymentType>(PaymentType.ORDINARIA);
+  const [extraordinaryReason, setExtraordinaryReason] = useState('');
   const [referenciaBancaria, setReferenciaBancaria] = useState('');
   const [montoBs, setMontoBs] = useState('');
   const [tasaCambio, setTasaCambio] = useState('');
   const [totalUsd, setTotalUsd] = useState('0.00');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
-  // Cálculo automático de USD
   useEffect(() => {
     if (montoBs && tasaCambio) {
       const bs = parseFloat(montoBs);
@@ -31,51 +34,71 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
   }, [montoBs, tasaCambio]);
 
   useEffect(() => {
-    // Si es residente, pre-seleccionar su casa
     if (!isAdmin && state.user?.houseId) {
       setHouseId(state.user.houseId);
     }
   }, [isAdmin, state.user]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setReceiptFile(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!houseId) {
-      alert('Por favor selecciona una casa');
+    if (!houseId || !referenciaBancaria || !montoBs || !tasaCambio) {
+      alert('Por favor completa todos los campos obligatorios');
       return;
     }
 
-    if (!referenciaBancaria || referenciaBancaria.length !== 6) {
+    if (referenciaBancaria.length !== 6) {
       alert('La referencia bancaria debe tener 6 dígitos');
       return;
     }
 
-    if (!montoBs || !tasaCambio) {
-      alert('Por favor completa todos los campos');
+    if (paymentType === PaymentType.EXTRAORDINARIA && !extraordinaryReason.trim()) {
+      alert('Por favor indica el motivo de la cuota extraordinaria');
       return;
+    }
+
+    // TODO: Subir archivo al servidor
+    let receiptUrl = '';
+    if (receiptFile) {
+      const formData = new FormData();
+      formData.append('receipt', receiptFile);
+      // Aquí iría la llamada al backend para subir el archivo
+      // receiptUrl = await uploadReceipt(formData);
     }
 
     const payment: Payment = {
       id: Date.now().toString(),
       houseId,
       amount: parseFloat(totalUsd),
-      date: new Date().toISOString(),
-      concept: 'Pago de cuota mensual',
+      date: paymentDate,
+      paymentType,
+      extraordinaryReason: paymentType === PaymentType.EXTRAORDINARIA ? extraordinaryReason : undefined,
       method: 'Transferencia',
       referenciaBancaria,
       montoBs: parseFloat(montoBs),
       tasaCambio: parseFloat(tasaCambio),
-      totalUsd: parseFloat(totalUsd)
+      totalUsd: parseFloat(totalUsd),
+      receiptUrl
     };
 
     onAddPayment(payment);
+    
+    // Reset form
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setPaymentType(PaymentType.ORDINARIA);
+    setExtraordinaryReason('');
     setReferenciaBancaria('');
     setMontoBs('');
     setTasaCambio('');
     setTotalUsd('0.00');
-    if (isAdmin) {
-      setHouseId('');
-    }
+    setReceiptFile(null);
+    if (isAdmin) setHouseId('');
     setShowForm(false);
   };
 
@@ -103,7 +126,7 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {isAdmin ? (
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-slate-700">Casa</label>
+                  <label className="block text-sm font-bold mb-2 text-slate-700">Casa *</label>
                   <select
                     value={houseId}
                     onChange={(e) => setHouseId(e.target.value)}
@@ -112,9 +135,7 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
                   >
                     <option value="">Seleccionar casa</option>
                     {state.houses.map(house => (
-                      <option key={house.id} value={house.id}>
-                        {house.name}
-                      </option>
+                      <option key={house.id} value={house.id}>{house.name}</option>
                     ))}
                   </select>
                 </div>
@@ -129,9 +150,45 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
                   />
                 </div>
               )}
-              
+
               <div>
-                <label className="block text-sm font-bold mb-2 text-slate-700">Últimos 6 dígitos Referencia</label>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Fecha *</label>
+                <input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold mb-2 text-slate-700">Tipo de Pago *</label>
+                <select
+                  value={paymentType}
+                  onChange={(e) => setPaymentType(e.target.value as PaymentType)}
+                  className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
+                >
+                  <option value={PaymentType.ORDINARIA}>{PaymentType.ORDINARIA}</option>
+                  <option value={PaymentType.EXTRAORDINARIA}>{PaymentType.EXTRAORDINARIA}</option>
+                </select>
+              </div>
+
+              {paymentType === PaymentType.EXTRAORDINARIA && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold mb-2 text-slate-700">Motivo de Cuota Extraordinaria *</label>
+                  <textarea
+                    value={extraordinaryReason}
+                    onChange={(e) => setExtraordinaryReason(e.target.value)}
+                    className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white min-h-[80px]"
+                    placeholder="Indica el motivo de la cuota extraordinaria..."
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Últimos 6 dígitos Referencia *</label>
                 <input
                   type="text"
                   maxLength={6}
@@ -144,7 +201,7 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
               </div>
 
               <div>
-                <label className="block text-sm font-bold mb-2 text-slate-700">Monto en Bs.</label>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Monto en Bs. *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -157,7 +214,7 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
               </div>
 
               <div>
-                <label className="block text-sm font-bold mb-2 text-slate-700">Tasa de Cambio</label>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Tasa de Cambio *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -169,11 +226,26 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-bold mb-2 text-slate-700">Total en USD (Calculado)</label>
                 <div className="w-full p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50 text-yellow-800 font-bold text-2xl text-center">
-                  ${totalUsd}
+                  ${totalUsd} USD
                 </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
+                  <Upload size={16} /> Comprobante de Pago
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFileChange}
+                  className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-yellow-500 file:text-white file:font-bold hover:file:bg-yellow-600"
+                />
+                {receiptFile && (
+                  <p className="text-sm text-slate-600 mt-2">Archivo: {receiptFile.name}</p>
+                )}
               </div>
             </div>
             
@@ -214,10 +286,14 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-slate-800">{house?.name}</h3>
-                        <p className="text-sm text-slate-600">{payment.concept}</p>
+                        <p className="text-sm text-slate-600">{payment.paymentType}</p>
                       </div>
                     </div>
                     <div className="ml-15 space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Calendar size={14} />
+                        {new Date(payment.date).toLocaleDateString('es-ES')}
+                      </div>
                       {payment.referenciaBancaria && (
                         <p className="text-sm text-slate-600">
                           <strong>Ref:</strong> ...{payment.referenciaBancaria}
@@ -225,18 +301,25 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
                       )}
                       {payment.montoBs && payment.tasaCambio && (
                         <p className="text-sm text-slate-600">
-                          <strong>Bs. {payment.montoBs.toFixed(2)}</strong> ÷ Tasa {payment.tasaCambio.toFixed(2)} = <strong>${payment.totalUsd?.toFixed(2)}</strong>
+                          <strong>Bs. {payment.montoBs.toFixed(2)}</strong> ÷ Tasa {payment.tasaCambio.toFixed(2)} = <strong>${payment.totalUsd?.toFixed(2)} USD</strong>
                         </p>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Calendar size={14} />
-                        {new Date(payment.date).toLocaleDateString('es-ES')}
-                      </div>
+                      {payment.extraordinaryReason && (
+                        <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded-lg mt-2">
+                          <strong>Motivo:</strong> {payment.extraordinaryReason}
+                        </p>
+                      )}
+                      {payment.receiptUrl && (
+                        <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2">
+                          <FileText size={14} /> Ver comprobante
+                        </a>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-3xl font-bold text-yellow-600">${payment.amount.toFixed(2)}</p>
+                      <p className="text-xs text-slate-500">USD</p>
                     </div>
                     {isAdmin && (
                       <button

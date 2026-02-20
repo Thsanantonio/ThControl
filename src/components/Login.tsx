@@ -4,45 +4,36 @@ import { ADMIN_KEYS, RESIDENT_KEY } from '../constants';
 import { LogIn, Key, Home } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (role: UserRole, username: string, condoKey: string, houseId?: string, manualBlobId?: string) => void;
+  onLogin: (role: UserRole, houseId?: string) => void;
   houses: House[];
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
   const [role, setRole] = useState<UserRole>(UserRole.RESIDENT);
-  const [username, setUsername] = useState('');
   const [condoKey, setCondoKey] = useState('');
   const [houseId, setHouseId] = useState('');
-  const [blobId, setBlobId] = useState('');
   const [selectedStreet, setSelectedStreet] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validar clave según rol
     if (role === UserRole.ADMIN) {
       if (!ADMIN_KEYS.includes(condoKey)) {
-        alert('Clave de administrador incorrecta. Usa Admin1 o Admin2');
+        alert('Clave de administrador incorrecta');
         return;
       }
     } else {
       if (condoKey !== RESIDENT_KEY) {
-        alert('Clave de residente incorrecta. Usa VecinoTH');
+        alert('Clave de residente incorrecta');
+        return;
+      }
+      if (!houseId) {
+        alert('Por favor selecciona tu casa');
         return;
       }
     }
 
-    if (!username.trim()) {
-      alert('Por favor ingresa tu nombre');
-      return;
-    }
-
-    if (role === UserRole.RESIDENT && !houseId) {
-      alert('Por favor selecciona tu casa');
-      return;
-    }
-
-    onLogin(role, username, condoKey, houseId || undefined, blobId || undefined);
+    onLogin(role, houseId || undefined);
   };
 
   const filteredHouses = selectedStreet 
@@ -93,17 +84,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-bold mb-2 text-slate-700">Nombre</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-              placeholder="Tu nombre"
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
               <Key size={16} /> Clave
             </label>
@@ -112,11 +92,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
               value={condoKey}
               onChange={(e) => setCondoKey(e.target.value)}
               className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-              placeholder={role === UserRole.ADMIN ? "Admin1 o Admin2" : "VecinoTH"}
+              placeholder="Ingresa tu clave"
+              autoComplete="off"
             />
-            <p className="text-xs text-slate-500 mt-1">
-              {role === UserRole.ADMIN ? "Usa Admin1 o Admin2" : "Usa VecinoTH"}
-            </p>
           </div>
 
           {role === UserRole.RESIDENT && (
@@ -159,18 +137,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
               )}
             </>
           )}
-
-          <div>
-            <label className="block text-sm font-bold mb-2 text-slate-700">Código de Sincronización (Opcional)</label>
-            <input
-              type="text"
-              value={blobId}
-              onChange={(e) => setBlobId(e.target.value)}
-              className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white font-mono text-xs"
-              placeholder="Pega aquí el código si ya tienes uno"
-            />
-            <p className="text-xs text-slate-500 mt-2">Solo si vas a conectar otro dispositivo</p>
-          </div>
 
           <button
             type="submit"
