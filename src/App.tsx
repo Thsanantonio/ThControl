@@ -9,7 +9,7 @@ import Reports from './components/Reports';
 import Suggestions from './components/Suggestions';
 import { LayoutDashboard, Receipt, ShoppingCart, BarChart3, LogOut, MessageSquare } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3000/api';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
