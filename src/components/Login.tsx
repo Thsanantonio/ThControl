@@ -149,7 +149,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
 
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
           <p className="text-xs text-slate-500">
-            Powered by <span className="text-yellow-500 font-bold">TH San Antonio, Yaracuy</span>
+           ©℗ 2026 Powered by <span className="text-yellow-500 font-bold">Pastorelli</span>
           </p>
         </div>
       </div>
