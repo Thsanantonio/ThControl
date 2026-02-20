@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AppState } from '../types';
 import { TrendingUp, DollarSign, Calendar, Download } from 'lucide-react';
-```
 
 
 interface ReportsProps {
