@@ -43,28 +43,28 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
   const streets = ['Calle A', 'Calle B', 'Calle C', 'Calle P'];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 flex items-center justify-center p-4">
-      <div className="bg-black rounded-3xl shadow-2xl p-8 w-full max-w-md border-4 border-yellow-500">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-4 border-yellow-500">
         <div className="flex items-center justify-center mb-8">
-          <div className="w-20 h-20 bg-yellow-500 rounded-2xl flex items-center justify-center text-black font-bold text-4xl shadow-lg">
+          <div className="w-20 h-20 bg-yellow-500 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">
             T
           </div>
         </div>
         
-        <h1 className="text-3xl font-bold text-center mb-2 text-yellow-400">TH Control</h1>
-        <p className="text-center text-gray-300 mb-8">Sistema de Gestión de Condominio</p>
+        <h1 className="text-3xl font-bold text-center mb-2 text-slate-800">TH Control</h1>
+        <p className="text-center text-slate-600 mb-8">Sistema de Gestión de Condominio</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-bold mb-2 text-gray-300">Tipo de Usuario</label>
+            <label className="block text-sm font-bold mb-2 text-slate-700">Tipo de Usuario</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setRole(UserRole.ADMIN)}
                 className={`p-4 rounded-xl font-bold transition-all ${
                   role === UserRole.ADMIN
-                    ? 'bg-yellow-500 text-black shadow-lg scale-105'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    ? 'bg-yellow-500 text-white shadow-lg scale-105'
+                    : 'bg-gray-300 text-slate-600 hover:bg-gray-400'
                 }`}
               >
                 Admin
@@ -74,8 +74,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
                 onClick={() => setRole(UserRole.RESIDENT)}
                 className={`p-4 rounded-xl font-bold transition-all ${
                   role === UserRole.RESIDENT
-                    ? 'bg-yellow-500 text-black shadow-lg scale-105'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    ? 'bg-yellow-500 text-white shadow-lg scale-105'
+                    : 'bg-gray-300 text-slate-600 hover:bg-gray-400'
                 }`}
               >
                 Residente
@@ -84,14 +84,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-bold mb-2 text-gray-300 flex items-center gap-2">
+            <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
               <Key size={16} /> Clave
             </label>
             <input
               type="password"
               value={condoKey}
               onChange={(e) => setCondoKey(e.target.value)}
-              className="w-full p-4 rounded-xl border-2 border-gray-700 focus:border-yellow-500 focus:outline-none bg-gray-900 text-white"
+              className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
               placeholder="Ingresa tu clave"
               autoComplete="off"
             />
@@ -100,14 +100,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
           {role === UserRole.RESIDENT && (
             <>
               <div>
-                <label className="block text-sm font-bold mb-2 text-gray-300">Calle</label>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Calle</label>
                 <select
                   value={selectedStreet}
                   onChange={(e) => {
                     setSelectedStreet(e.target.value);
                     setHouseId('');
                   }}
-                  className="w-full p-4 rounded-xl border-2 border-gray-700 focus:border-yellow-500 focus:outline-none bg-gray-900 text-white"
+                  className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
                 >
                   <option value="">Selecciona tu calle</option>
                   {streets.map(street => (
@@ -118,13 +118,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
 
               {selectedStreet && (
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-300 flex items-center gap-2">
+                  <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
                     <Home size={16} /> Tu Casa
                   </label>
                   <select
                     value={houseId}
                     onChange={(e) => setHouseId(e.target.value)}
-                    className="w-full p-4 rounded-xl border-2 border-gray-700 focus:border-yellow-500 focus:outline-none bg-gray-900 text-white"
+                    className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
                   >
                     <option value="">Selecciona tu casa</option>
                     {filteredHouses.map(house => (
@@ -140,16 +140,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
 
           <button
             type="submit"
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-lg"
+            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-lg"
           >
             <LogIn size={24} />
             Ingresar
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-gray-700 text-center">
-          <p className="text-xs text-gray-500">
-            Powered by <span className="text-yellow-400 font-bold">Pastorelli</span> / <span className="text-yellow-400 font-bold">Claude</span>
+        <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+          <p className="text-xs text-slate-500">
+            Powered by <span className="text-yellow-500 font-bold">TH San Antonio, Yaracuy</span>
           </p>
         </div>
       </div>
