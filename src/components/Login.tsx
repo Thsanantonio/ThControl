@@ -1,46 +1,47 @@
 import React, { useState } from 'react';
-import { UserRole, House } from '../types';
-import { ADMIN_KEYS, RESIDENT_KEY } from '../constants';
-import { LogIn, Key, Home } from 'lucide-react';
+import { UserRole } from '../types';
+import { LogIn, Key, Mail } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (role: UserRole, houseId?: string) => void;
-  houses: House[];
+  onLogin: (role: UserRole, houseId?: string, token?: string) => void;
+  houses: any[];
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
-  const [role, setRole] = useState<UserRole>(UserRole.RESIDENT);
-  const [condoKey, setCondoKey] = useState('');
-  const [houseId, setHouseId] = useState('');
-  const [selectedStreet, setSelectedStreet] = useState('');
+const API_URL = import.meta.env?.VITE_API_URL || 'https://thcontrol.es';
 
-  const handleSubmit = (e: React.FormEvent) => {
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (role === UserRole.ADMIN) {
-      if (!ADMIN_KEYS.includes(condoKey)) {
-        alert('Clave de administrador incorrecta');
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Credenciales incorrectas');
         return;
       }
-    } else {
-      if (condoKey !== RESIDENT_KEY) {
-        alert('Clave de residente incorrecta');
-        return;
-      }
-      if (!houseId) {
-        alert('Por favor selecciona tu casa');
-        return;
-      }
+
+      const role = data.rol === 'admin' ? UserRole.ADMIN : UserRole.RESIDENT;
+      onLogin(role, data.casa_numero, data.token);
+    } catch (err) {
+      setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
-
-    onLogin(role, houseId || undefined);
   };
-
-  const filteredHouses = selectedStreet 
-    ? houses.filter(h => h.street === selectedStreet)
-    : houses;
-
-  const streets = ['Calle A', 'Calle B', 'Calle C', 'Calle P'];
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -50,107 +51,59 @@ const Login: React.FC<LoginProps> = ({ onLogin, houses }) => {
             T
           </div>
         </div>
-        
+
         <h1 className="text-3xl font-bold text-center mb-2 text-slate-800">TH Control</h1>
         <p className="text-center text-slate-600 mb-8">Sistema de Gestión de Condominio</p>
 
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-bold mb-2 text-slate-700">Tipo de Usuario</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRole(UserRole.ADMIN)}
-                className={`p-4 rounded-xl font-bold transition-all ${
-                  role === UserRole.ADMIN
-                    ? 'bg-yellow-500 text-white shadow-lg scale-105'
-                    : 'bg-gray-300 text-slate-600 hover:bg-gray-400'
-                }`}
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole(UserRole.RESIDENT)}
-                className={`p-4 rounded-xl font-bold transition-all ${
-                  role === UserRole.RESIDENT
-                    ? 'bg-yellow-500 text-white shadow-lg scale-105'
-                    : 'bg-gray-300 text-slate-600 hover:bg-gray-400'
-                }`}
-              >
-                Residente
-              </button>
-            </div>
+            <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
+              <Mail size={16} /> Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
+              placeholder="tu@email.com"
+              required
+            />
           </div>
 
           <div>
             <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
-              <Key size={16} /> Clave
+              <Key size={16} /> Contraseña
             </label>
             <input
               type="password"
-              value={condoKey}
-              onChange={(e) => setCondoKey(e.target.value)}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-              placeholder="Ingresa tu clave"
-              autoComplete="off"
+              placeholder="Tu contraseña"
+              required
             />
           </div>
 
-          {role === UserRole.RESIDENT && (
-            <>
-              <div>
-                <label className="block text-sm font-bold mb-2 text-slate-700">Calle</label>
-                <select
-                  value={selectedStreet}
-                  onChange={(e) => {
-                    setSelectedStreet(e.target.value);
-                    setHouseId('');
-                  }}
-                  className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-                >
-                  <option value="">Selecciona tu calle</option>
-                  {streets.map(street => (
-                    <option key={street} value={street}>{street}</option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedStreet && (
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
-                    <Home size={16} /> Tu Casa
-                  </label>
-                  <select
-                    value={houseId}
-                    onChange={(e) => setHouseId(e.target.value)}
-                    className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white"
-                  >
-                    <option value="">Selecciona tu casa</option>
-                    {filteredHouses.map(house => (
-                      <option key={house.id} value={house.id}>
-                        {house.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </>
-          )}
-
           <button
             type="submit"
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-lg"
+            disabled={loading}
+            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-lg disabled:opacity-50"
           >
             <LogIn size={24} />
-            Ingresar
+            {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
           <p className="text-xs text-slate-500">
-  ©℗ 2026 Powered by <span className="text-yellow-500 font-bold">Pastorelli</span>
-</p>
+            ©℗ 2026 Powered by <span className="text-yellow-500 font-bold">Pastorelli</span>
+          </p>
         </div>
       </div>
     </div>
