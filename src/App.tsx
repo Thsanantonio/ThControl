@@ -206,4 +206,5 @@ const MobileNavItem: React.FC<{ active: boolean; onClick: () => void; icon: Reac
   <button onClick={onClick} className={`p-4 rounded-2xl transition-all ${active ? 'text-yellow-500 bg-yellow-50 scale-110' : 'text-slate-400'}`}>{icon}</button>
 );
 
+
 export default App;
