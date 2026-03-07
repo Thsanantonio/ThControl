@@ -9,7 +9,7 @@ import Reports from './components/Reports';
 import Suggestions from './components/Suggestions';
 import { LayoutDashboard, Receipt, ShoppingCart, BarChart3, LogOut, MessageSquare } from 'lucide-react';
 
-const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env?.VITE_API_URL || 'https://thcontrol.es';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -19,35 +19,37 @@ const App: React.FC = () => {
     expenses: [],
     suggestions: []
   });
-
+  const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Cargar datos al iniciar sesión
   useEffect(() => {
-    if (state.user) {
+    if (state.user && token) {
       loadData();
     }
-  }, [state.user]);
+  }, [state.user, token]);
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  });
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [paymentsRes, expensesRes, suggestionsRes] = await Promise.all([
-        fetch(`${API_URL}/payments`),
-        fetch(`${API_URL}/expenses`),
-        fetch(`${API_URL}/suggestions`)
+      const isAdmin = state.user?.role === UserRole.ADMIN;
+      const paymentsUrl = isAdmin ? `${API_URL}/api/pagos` : `${API_URL}/api/pagos/mis-pagos`;
+      const [paymentsRes, expensesRes] = await Promise.all([
+        fetch(paymentsUrl, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/gastos/publicos`, { headers: authHeaders() })
       ]);
-
       const payments = await paymentsRes.json();
       const expenses = await expensesRes.json();
-      const suggestions = await suggestionsRes.json();
-
       setState(prev => ({
         ...prev,
-        payments,
-        expenses,
-        suggestions
+        payments: Array.isArray(payments) ? payments : [],
+        expenses: Array.isArray(expenses) ? expenses : [],
+        suggestions: []
       }));
     } catch (error) {
       console.error('Error cargando datos:', error);
@@ -56,26 +58,35 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = (role: UserRole, houseId?: string) => {
+  const handleLogin = (role: UserRole, houseId?: string, userToken?: string) => {
+    setToken(userToken || null);
     setState(prev => ({ ...prev, user: { role, houseId } }));
   };
 
   const handleLogout = () => {
     if (confirm('¿Cerrar sesión?')) {
-      setState(prev => ({ ...prev, user: null }));
+      setToken(null);
+      setState(prev => ({ ...prev, user: null, payments: [], expenses: [], suggestions: [] }));
       setActiveTab('dashboard');
     }
   };
 
   const addPayment = async (p: Payment) => {
     try {
-      const res = await fetch(`${API_URL}/payments`, {
+      const formData = new FormData();
+      formData.append('tipo_cuota', p.type || 'ordinaria');
+      formData.append('monto', String(p.amount));
+      formData.append('numero_comprobante', p.receiptNumber || '');
+      formData.append('descripcion', p.description || '');
+      formData.append('fecha_pago', p.date || new Date().toISOString().split('T')[0]);
+      if (p.file) formData.append('comprobante', p.file);
+      const res = await fetch(`${API_URL}/api/pagos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(p)
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
       });
-      const newPayment = await res.json();
-      setState(s => ({ ...s, payments: [newPayment, ...s.payments] }));
+      const data = await res.json();
+      if (data.pago) setState(s => ({ ...s, payments: [data.pago, ...s.payments] }));
     } catch (error) {
       console.error('Error guardando pago:', error);
       alert('Error al guardar el pago');
@@ -85,7 +96,11 @@ const App: React.FC = () => {
   const deletePayment = async (id: string) => {
     if (confirm('¿Eliminar registro?')) {
       try {
-        await fetch(`${API_URL}/payments/${id}`, { method: 'DELETE' });
+        await fetch(`${API_URL}/api/pagos/${id}/estado`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ estado: 'rechazado' })
+        });
         setState(s => ({ ...s, payments: s.payments.filter(p => p.id !== id) }));
       } catch (error) {
         console.error('Error eliminando pago:', error);
@@ -95,13 +110,20 @@ const App: React.FC = () => {
 
   const addExpense = async (e: Expense) => {
     try {
-      const res = await fetch(`${API_URL}/expenses`, {
+      const formData = new FormData();
+      formData.append('descripcion', e.description || '');
+      formData.append('monto', String(e.amount));
+      formData.append('categoria', e.category || 'general');
+      formData.append('proveedor', e.provider || '');
+      formData.append('fecha_gasto', e.date || new Date().toISOString().split('T')[0]);
+      if (e.file) formData.append('factura', e.file);
+      const res = await fetch(`${API_URL}/api/gastos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(e)
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
       });
-      const newExpense = await res.json();
-      setState(s => ({ ...s, expenses: [newExpense, ...s.expenses] }));
+      const data = await res.json();
+      if (data.gasto) setState(s => ({ ...s, expenses: [data.gasto, ...s.expenses] }));
     } catch (error) {
       console.error('Error guardando gasto:', error);
       alert('Error al guardar el gasto');
@@ -109,41 +131,20 @@ const App: React.FC = () => {
   };
 
   const addSuggestion = async (sug: Suggestion) => {
-    try {
-      const res = await fetch(`${API_URL}/suggestions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sug)
-      });
-      const newSuggestion = await res.json();
-      setState(s => ({ ...s, suggestions: [newSuggestion, ...(s.suggestions || [])] }));
-    } catch (error) {
-      console.error('Error guardando sugerencia:', error);
-      alert('Error al enviar la sugerencia');
-    }
+    setState(s => ({ ...s, suggestions: [{ ...sug, id: Date.now().toString() }, ...(s.suggestions || [])] }));
   };
 
   const updateSuggestion = async (id: string, status: any) => {
-    try {
-      await fetch(`${API_URL}/suggestions/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      setState(s => ({
-        ...s,
-        suggestions: s.suggestions.map(sug => sug.id === id ? { ...sug, status } : sug)
-      }));
-    } catch (error) {
-      console.error('Error actualizando sugerencia:', error);
-    }
+    setState(s => ({
+      ...s,
+      suggestions: s.suggestions.map(sug => sug.id === id ? { ...sug, status } : sug)
+    }));
   };
 
   if (!state.user) return <Login onLogin={handleLogin} houses={state.houses} />;
 
   return (
     <div className="min-h-screen flex bg-gray-100 flex-col md:flex-row">
-      {/* Sidebar PC */}
       <aside className="hidden md:flex flex-col w-64 bg-gray-200 border-r border-gray-300 sticky top-0 h-screen">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
@@ -167,7 +168,6 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-auto pb-24 md:pb-0 relative">
         <div className="md:hidden bg-gray-200 border-b p-4 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-2">
@@ -175,7 +175,6 @@ const App: React.FC = () => {
             <span className="font-bold text-slate-800">TH Control</span>
           </div>
         </div>
-
         {isLoading ? (
           <div className="flex items-center justify-center h-screen">
             <div className="text-slate-600">Cargando datos...</div>
@@ -191,7 +190,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Nav Mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-200 border-t border-gray-300 flex justify-around p-2 z-50 shadow-2xl">
         <MobileNavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} />
         <MobileNavItem active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<Receipt size={24} />} />
