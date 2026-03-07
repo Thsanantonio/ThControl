@@ -74,12 +74,10 @@ const App: React.FC = () => {
   const addPayment = async (p: Payment) => {
     try {
       const formData = new FormData();
-      formData.append('tipo_cuota', p.type || 'ordinaria');
+      formData.append('tipo_cuota', p.paymentType || 'ordinaria');
       formData.append('monto', String(p.amount));
-      formData.append('numero_comprobante', p.receiptNumber || '');
-      formData.append('descripcion', p.description || '');
+      formData.append('numero_comprobante', p.referenciaBancaria || '');
       formData.append('fecha_pago', p.date || new Date().toISOString().split('T')[0]);
-      if (p.file) formData.append('comprobante', p.file);
       const res = await fetch(`${API_URL}/api/pagos`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -111,12 +109,10 @@ const App: React.FC = () => {
   const addExpense = async (e: Expense) => {
     try {
       const formData = new FormData();
-      formData.append('descripcion', e.description || '');
+      formData.append('descripcion', e.concept || '');
       formData.append('monto', String(e.amount));
       formData.append('categoria', e.category || 'general');
-      formData.append('proveedor', e.provider || '');
       formData.append('fecha_gasto', e.date || new Date().toISOString().split('T')[0]);
-      if (e.file) formData.append('factura', e.file);
       const res = await fetch(`${API_URL}/api/gastos`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
