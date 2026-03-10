@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { AppState } from '../types';
 import { TrendingUp, DollarSign, Calendar, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ReportsProps {
   state: AppState;
@@ -67,10 +69,133 @@ const Reports: React.FC<ReportsProps> = ({ state }) => {
     total: filteredData.payments.filter((p: any) => getCasa(p) === casa.id).reduce((sum, p) => sum + getMonto(p), 0)
   }));
 
+  const getPeriodLabel = () => {
+    if (filterType === 'month') return selectedMonth;
+    if (filterType === 'year') return selectedYear;
+    return selectedStreet || 'Todas las calles';
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const period = getPeriodLabel();
+
+    // Header
+    doc.setFillColor(30, 58, 95);
+    doc.rect(0, 0, 210, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TH CONTROL', 14, 15);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Reporte Financiero — ${period}`, 14, 25);
+    doc.text(`Generado: ${new Date().toLocaleDateString('es-ES')}`, 140, 25);
+
+    // Resumen
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen General', 14, 50);
+
+    autoTable(doc, {
+      startY: 55,
+      head: [['Concepto', 'Monto (USD)']],
+      body: [
+        ['Ingresos Totales', `$${totalIncome.toFixed(2)}`],
+        ['Gastos Totales', `$${totalExpenses.toFixed(2)}`],
+        ['Balance', `$${balance.toFixed(2)}`],
+      ],
+      headStyles: { fillColor: [234, 179, 8], textColor: [0, 0, 0], fontStyle: 'bold' },
+      bodyStyles: { fontSize: 11 },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    });
+
+    // Pagos por casa
+    const finalY1 = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pagos por Casa', 14, finalY1);
+
+    const casasConPagos = paymentsByCasa.filter(c => c.total > 0);
+    if (casasConPagos.length > 0) {
+      autoTable(doc, {
+        startY: finalY1 + 5,
+        head: [['Casa', 'Calle', 'Total (USD)']],
+        body: casasConPagos.map(c => [c.name, c.street, `$${c.total.toFixed(2)}`]),
+        headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: { 2: { halign: 'right' } },
+      });
+    } else {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('No hay pagos en este período', 14, finalY1 + 10);
+    }
+
+    // Gastos por categoría
+    const finalY2 = (doc as any).lastAutoTable?.finalY + 10 || finalY1 + 20;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Gastos por Categoría', 14, finalY2);
+
+    if (Object.keys(expensesByCategory).length > 0) {
+      autoTable(doc, {
+        startY: finalY2 + 5,
+        head: [['Categoría', 'Monto (USD)', '% del Total']],
+        body: Object.entries(expensesByCategory).map(([cat, amount]: any) => [
+          cat,
+          `$${amount.toFixed(2)}`,
+          `${totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : 0}%`
+        ]),
+        headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+      });
+    }
+
+    // Detalle de pagos
+    if (filteredData.payments.length > 0) {
+      doc.addPage();
+      doc.setFillColor(30, 58, 95);
+      doc.rect(0, 0, 210, 20, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Detalle de Pagos', 14, 14);
+
+      autoTable(doc, {
+        startY: 25,
+        head: [['Casa', 'Tipo', 'Fecha', 'Referencia', 'Monto (USD)', 'Estado']],
+        body: filteredData.payments.map((p: any) => [
+          getCasa(p),
+          p.tipo_cuota || p.paymentType || '',
+          new Date(getDate(p)).toLocaleDateString('es-ES'),
+          p.numero_comprobante || '',
+          `$${getMonto(p).toFixed(2)}`,
+          p.estado || 'pendiente'
+        ]),
+        headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: { 4: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.column.index === 5 && data.section === 'body') {
+            if (data.cell.raw === 'verificado') data.cell.styles.textColor = [22, 163, 74];
+            if (data.cell.raw === 'rechazado') data.cell.styles.textColor = [220, 38, 38];
+          }
+        }
+      });
+    }
+
+    doc.save(`TH-Control-Reporte-${period}.pdf`);
+  };
+
   return (
     <div className="p-4 md:p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Reportes Financieros</h1>
+        <button
+          onClick={generatePDF}
+          className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg transition-all"
+        >
+          <Download size={20} /> Descargar PDF
+        </button>
       </div>
 
       <div className="bg-gray-200 rounded-2xl p-6 mb-8 border-2 border-gray-300">
