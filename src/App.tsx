@@ -78,6 +78,9 @@ const App: React.FC = () => {
       formData.append('monto', String(p.amount));
       formData.append('numero_comprobante', p.referenciaBancaria || '');
       formData.append('fecha_pago', p.date || new Date().toISOString().split('T')[0]);
+      if (p.receiptUrl && (p.receiptUrl as any) instanceof File) {
+        formData.append('comprobante', p.receiptUrl as any);
+      }
       const res = await fetch(`${API_URL}/api/pagos`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -91,17 +94,31 @@ const App: React.FC = () => {
     }
   };
 
-  const deletePayment = async (id: string) => {
-    if (confirm('¿Eliminar registro?')) {
+  const deletePayment = async (idWithAction: string) => {
+    const [id, action] = idWithAction.split('|');
+    if (action === 'verificado' || action === 'rechazado') {
       try {
         await fetch(`${API_URL}/api/pagos/${id}/estado`, {
           method: 'PATCH',
           headers: authHeaders(),
-          body: JSON.stringify({ estado: 'rechazado' })
+          body: JSON.stringify({ estado: action })
         });
-        setState(s => ({ ...s, payments: s.payments.filter(p => p.id !== id) }));
+        setState(s => ({ ...s, payments: s.payments.map((p: any) => p.id === id ? { ...p, estado: action } : p) }));
       } catch (error) {
-        console.error('Error eliminando pago:', error);
+        console.error('Error actualizando estado:', error);
+      }
+    } else {
+      if (confirm('¿Eliminar registro?')) {
+        try {
+          await fetch(`${API_URL}/api/pagos/${id}/estado`, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({ estado: 'rechazado' })
+          });
+          setState(s => ({ ...s, payments: s.payments.filter((p: any) => p.id !== id) }));
+        } catch (error) {
+          console.error('Error eliminando pago:', error);
+        }
       }
     }
   };
@@ -205,6 +222,5 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.Reac
 const MobileNavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode }> = ({ active, onClick, icon }) => (
   <button onClick={onClick} className={`p-4 rounded-2xl transition-all ${active ? 'text-yellow-500 bg-yellow-50 scale-110' : 'text-slate-400'}`}>{icon}</button>
 );
-
 
 export default App;
