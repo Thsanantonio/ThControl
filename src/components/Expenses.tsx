@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppState, Expense } from '../types';
 import { Plus, ShoppingCart, Calendar, Upload, Eye, FileText } from 'lucide-react';
 
@@ -14,46 +14,20 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [montoBs, setMontoBs] = useState('');
   const [tasaCambio, setTasaCambio] = useState('');
-  const [totalUsd, setTotalUsd] = useState('0.00');
   const [category, setCategory] = useState('Mantenimiento');
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (montoBs && tasaCambio) {
-      const bs = parseFloat(montoBs);
-      const tasa = parseFloat(tasaCambio);
-      if (!isNaN(bs) && !isNaN(tasa) && tasa > 0) {
-        setTotalUsd((bs / tasa).toFixed(2));
-      }
-    } else {
-      setTotalUsd('0.00');
-    }
-  }, [montoBs, tasaCambio]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setInvoiceFile(e.target.files[0]);
-    }
-  };
+  const totalUsd = montoBs && tasaCambio && parseFloat(tasaCambio) > 0
+    ? (parseFloat(montoBs) / parseFloat(tasaCambio)).toFixed(2)
+    : '0.00';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!concept || !montoBs || !tasaCambio) {
       alert('Por favor completa todos los campos obligatorios');
       return;
     }
-
-    // TODO: Subir archivo al servidor
-    let invoiceUrl = '';
-    if (invoiceFile) {
-      const formData = new FormData();
-      formData.append('invoice', invoiceFile);
-      // Aquí iría la llamada al backend para subir el archivo
-      // invoiceUrl = await uploadInvoice(formData);
-    }
-
     const expense: Expense = {
       id: Date.now().toString(),
       concept,
@@ -63,17 +37,13 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
       montoBs: parseFloat(montoBs),
       tasaCambio: parseFloat(tasaCambio),
       totalUsd: parseFloat(totalUsd),
-      invoiceUrl
+      invoiceUrl: invoiceFile as any
     };
-
-    onAddExpense(expense);
-    
-    // Reset form
+    await onAddExpense(expense);
     setConcept('');
     setExpenseDate(new Date().toISOString().split('T')[0]);
     setMontoBs('');
     setTasaCambio('');
-    setTotalUsd('0.00');
     setCategory('Mantenimiento');
     setInvoiceFile(null);
     setShowForm(false);
@@ -97,8 +67,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
           onClick={() => setShowForm(!showForm)}
           className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg transition-all"
         >
-          <Plus size={20} />
-          Registrar Gasto
+          <Plus size={20} /> Registrar Gasto
         </button>
       </div>
 
@@ -118,7 +87,6 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                   required
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-bold mb-2 text-slate-700">Fecha *</label>
                 <input
@@ -129,7 +97,6 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                   required
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-bold mb-2 text-slate-700">Monto en Bs. *</label>
                 <input
@@ -142,7 +109,6 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                   required
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-bold mb-2 text-slate-700">Tasa de Cambio *</label>
                 <input
@@ -155,14 +121,12 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                   required
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-bold mb-2 text-slate-700">Total en USD (Calculado)</label>
+                <label className="block text-sm font-bold mb-2 text-slate-700">Total en USD</label>
                 <div className="w-full p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50 text-yellow-800 font-bold text-2xl text-center">
                   ${totalUsd} USD
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-bold mb-2 text-slate-700">Categoría *</label>
                 <select
@@ -179,7 +143,6 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                   <option>Otros</option>
                 </select>
               </div>
-
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold mb-2 text-slate-700 flex items-center gap-2">
                   <Upload size={16} /> Factura o Comprobante
@@ -187,29 +150,15 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={handleFileChange}
-                  className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-yellow-500 file:text-white file:font-bold hover:file:bg-yellow-600"
+                  onChange={(e) => e.target.files && setInvoiceFile(e.target.files[0])}
+                  className="w-full p-3 rounded-xl border-2 border-gray-300 bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-yellow-500 file:text-white file:font-bold"
                 />
-                {invoiceFile && (
-                  <p className="text-sm text-slate-600 mt-2">Archivo: {invoiceFile.name}</p>
-                )}
+                {invoiceFile && <p className="text-sm text-slate-600 mt-2">Archivo: {invoiceFile.name}</p>}
               </div>
             </div>
-            
             <div className="flex gap-3">
-              <button
-                type="submit"
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-xl transition-all"
-              >
-                Guardar Gasto
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 rounded-xl transition-all"
-              >
-                Cancelar
-              </button>
+              <button type="submit" className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-xl">Guardar Gasto</button>
+              <button type="button" onClick={() => setShowForm(false)} className="flex-1 bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 rounded-xl">Cancelar</button>
             </div>
           </form>
         </div>
@@ -221,7 +170,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
             <p className="text-slate-500">No hay gastos registrados</p>
           </div>
         ) : (
-          state.expenses.map(expense => (
+          state.expenses.map((expense: any) => (
             <div key={expense.id} className="bg-gray-200 rounded-2xl p-6 border-2 border-gray-300 hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -230,25 +179,20 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                       <ShoppingCart size={24} />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg text-slate-800">{expense.concept}</h3>
+                      <h3 className="font-bold text-lg text-slate-800">{expense.descripcion || expense.concept}</h3>
                       <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1 rounded-full">
-                        {expense.category}
+                        {expense.categoria || expense.category}
                       </span>
                     </div>
                   </div>
-                  <div className="ml-15 space-y-1">
+                  <div className="space-y-1 ml-2">
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                       <Calendar size={14} />
-                      {new Date(expense.date).toLocaleDateString('es-ES')}
+                      {new Date(expense.fecha_gasto || expense.date).toLocaleDateString('es-ES')}
                     </div>
-                    {expense.montoBs && expense.tasaCambio && (
-                      <p className="text-sm text-slate-600">
-                        <strong>Bs. {expense.montoBs.toFixed(2)}</strong> ÷ Tasa {expense.tasaCambio.toFixed(2)} = <strong>${expense.totalUsd?.toFixed(2)} USD</strong>
-                      </p>
-                    )}
-                    {expense.invoiceUrl && (
+                    {(expense.factura_url || expense.invoiceUrl) && (
                       <button
-                        onClick={() => setViewingInvoice(expense.invoiceUrl!)}
+                        onClick={() => setViewingInvoice(expense.factura_url || expense.invoiceUrl)}
                         className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2 font-bold"
                       >
                         <Eye size={14} /> Ver factura
@@ -257,7 +201,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-red-600">${expense.amount.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-red-600">${parseFloat(expense.monto || expense.amount || 0).toFixed(2)}</p>
                   <p className="text-xs text-slate-500">USD</p>
                 </div>
               </div>
@@ -266,17 +210,12 @@ const Expenses: React.FC<ExpensesProps> = ({ state, onAddExpense, isAdmin }) => 
         )}
       </div>
 
-      {/* Modal para ver factura */}
       {viewingInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setViewingInvoice(null)}>
           <div className="bg-white rounded-2xl p-6 max-w-4xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-xl flex items-center gap-2">
-                <FileText size={24} /> Factura
-              </h3>
-              <button onClick={() => setViewingInvoice(null)} className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">
-                Cerrar
-              </button>
+              <h3 className="font-bold text-xl flex items-center gap-2"><FileText size={24} /> Factura</h3>
+              <button onClick={() => setViewingInvoice(null)} className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">Cerrar</button>
             </div>
             <img src={viewingInvoice} alt="Factura" className="w-full rounded-lg" />
           </div>
