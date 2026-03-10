@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, AppState, Payment, Expense, Suggestion } from './types';
+import { UserRole, AppState, Payment, Expense } from './types';
 import { INITIAL_HOUSES } from './constants';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -147,17 +147,6 @@ const App: React.FC = () => {
     }
   };
 
-  const addSuggestion = async (sug: Suggestion) => {
-    setState(s => ({ ...s, suggestions: [{ ...sug, id: Date.now().toString() }, ...(s.suggestions || [])] }));
-  };
-
-  const updateSuggestion = async (id: string, status: any) => {
-    setState(s => ({
-      ...s,
-      suggestions: s.suggestions.map(sug => sug.id === id ? { ...sug, status } : sug)
-    }));
-  };
-
   if (!state.user) return <Login onLogin={handleLogin} houses={state.houses} />;
 
   return (
@@ -203,7 +192,7 @@ const App: React.FC = () => {
             {activeTab === 'payments' && <Payments state={state} onAddPayment={addPayment} onDeletePayment={deletePayment} isAdmin={state.user.role === UserRole.ADMIN} />}
             {activeTab === 'expenses' && <Expenses state={state} onAddExpense={addExpense} isAdmin={state.user.role === UserRole.ADMIN} />}
             {activeTab === 'reports' && <Reports state={state} />}
-            {activeTab === 'suggestions' && <Suggestions state={state} onAddSuggestion={addSuggestion} onUpdateStatus={updateSuggestion} />}
+            {activeTab === 'suggestions' && <Suggestions token={token!} apiUrl={API_URL} isAdmin={state.user.role === UserRole.ADMIN} />}
             {activeTab === 'perfil' && <Perfil token={token!} apiUrl={API_URL} />}
           </>
         )}
