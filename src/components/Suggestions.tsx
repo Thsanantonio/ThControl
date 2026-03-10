@@ -1,188 +1,197 @@
-import React, { useState } from 'react';
-import { AppState, Suggestion, UserRole } from '../types';
-import { MessageSquare, Clock, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageSquare, Send, CheckCircle, Clock, Eye } from 'lucide-react';
 
 interface SuggestionsProps {
-  state: AppState;
-  onAddSuggestion: (suggestion: Suggestion) => void;
-  onUpdateStatus: (id: string, status: 'pending' | 'reviewed' | 'resolved') => void;
+  token: string;
+  apiUrl: string;
+  isAdmin: boolean;
 }
 
-const Suggestions: React.FC<SuggestionsProps> = ({ state, onAddSuggestion, onUpdateStatus }) => {
-  const [message, setMessage] = useState('');
-  const isAdmin = state.user?.role === UserRole.ADMIN;
+const Suggestions: React.FC<SuggestionsProps> = ({ token, apiUrl, isAdmin }) => {
+  const [sugerencias, setSugerencias] = useState<any[]>([]);
+  const [mensaje, setMensaje] = useState('');
+  const [respuesta, setRespuesta] = useState<{ [id: string]: string }>({});
+  const [loading, setLoading] = useState(false);
+  const [enviado, setEnviado] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!message.trim()) {
-      alert('Por favor escribe un mensaje');
-      return;
-    }
+  useEffect(() => {
+    cargarSugerencias();
+  }, []);
 
-    if (!state.user?.houseId && !isAdmin) {
-      alert('Error: No se pudo identificar tu casa');
-      return;
-    }
-
-    // Capturar IP del usuario
-    let ipAddress = '';
+  const cargarSugerencias = async () => {
     try {
-      const ipRes = await fetch('https://api.ipify.org?format=json');
-      const ipData = await ipRes.json();
-      ipAddress = ipData.ip;
-    } catch (error) {
-      console.error('No se pudo obtener la IP:', error);
+      const res = await fetch(`${apiUrl}/api/sugerencias`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setSugerencias(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
     }
-
-    const suggestion: Suggestion = {
-      id: Date.now().toString(),
-      houseId: state.user?.houseId || 'admin',
-      message: message.trim(),
-      date: new Date().toISOString(),
-      status: 'pending',
-      ipAddress
-    };
-
-    onAddSuggestion(suggestion);
-    setMessage('');
   };
 
-  const filteredSuggestions = isAdmin
-    ? state.suggestions
-    : state.suggestions.filter(s => s.houseId === state.user?.houseId);
+  const enviarSugerencia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mensaje.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/sugerencias`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ mensaje })
+      });
+      const data = await res.json();
+      if (data.sugerencia) {
+        setSugerencias(s => [data.sugerencia, ...s]);
+        setMensaje('');
+        setEnviado(true);
+        setTimeout(() => setEnviado(false), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const responderSugerencia = async (id: string) => {
+    try {
+      const res = await fetch(`${apiUrl}/api/sugerencias/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado: 'respondido', respuesta: respuesta[id] || '' })
+      });
+      const data = await res.json();
+      if (data.sugerencia) {
+        setSugerencias(s => s.map(sg => sg.id === id ? data.sugerencia : sg));
+        setRespuesta(r => ({ ...r, [id]: '' }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const marcarLeido = async (id: string) => {
+    try {
+      await fetch(`${apiUrl}/api/sugerencias/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado: 'leido' })
+      });
+      setSugerencias(s => s.map(sg => sg.id === id ? { ...sg, estado: 'leido' } : sg));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getEstadoColor = (estado: string) => {
+    if (estado === 'respondido') return 'bg-green-100 text-green-700';
+    if (estado === 'leido') return 'bg-blue-100 text-blue-700';
+    return 'bg-yellow-100 text-yellow-700';
+  };
+
+  const getEstadoLabel = (estado: string) => {
+    if (estado === 'respondido') return 'Respondido';
+    if (estado === 'leido') return 'Leído';
+    return 'Pendiente';
+  };
 
   return (
     <div className="p-4 md:p-8">
       <h1 className="text-3xl font-bold text-slate-800 mb-8">Buzón de Sugerencias</h1>
 
       {!isAdmin && (
-        <div className="bg-gray-200 rounded-2xl p-6 mb-8 border-2 border-gray-300">
-          <h2 className="text-xl font-bold text-slate-800 mb-6">Nueva Sugerencia</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold mb-2 text-slate-700">Tu Casa</label>
-              <input
-                type="text"
-                value={state.houses.find(h => h.id === state.user?.houseId)?.name || ''}
-                className="w-full p-4 rounded-xl border-2 border-gray-300 bg-gray-100 text-slate-600 font-bold"
-                disabled
-              />
+        <div className="bg-gray-200 rounded-2xl p-6 border-2 border-gray-300 mb-8">
+          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <MessageSquare size={20} /> Enviar Sugerencia
+          </h2>
+          {enviado && (
+            <div className="bg-green-100 text-green-700 rounded-xl p-4 mb-4 flex items-center gap-2 font-bold">
+              <CheckCircle size={18} /> ¡Sugerencia enviada correctamente!
             </div>
-            
-            <div>
-              <label className="block text-sm font-bold mb-2 text-slate-700">Tu Mensaje</label>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white min-h-[120px]"
-                placeholder="Escribe aquí tu sugerencia, comentario o reporte..."
-                required
-              />
-            </div>
+          )}
+          <form onSubmit={enviarSugerencia} className="space-y-4">
+            <textarea
+              value={mensaje}
+              onChange={(e) => setMensaje(e.target.value)}
+              className="w-full p-4 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white min-h-[120px] resize-none"
+              placeholder="Escribe tu sugerencia o comentario aquí..."
+              required
+            />
             <button
               type="submit"
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg"
+              disabled={loading}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"
             >
-              Enviar Sugerencia
+              <Send size={18} /> {loading ? 'Enviando...' : 'Enviar Sugerencia'}
             </button>
           </form>
         </div>
       )}
 
       <div className="space-y-4">
-        {filteredSuggestions.length === 0 ? (
+        <h2 className="text-xl font-bold text-slate-800">
+          {isAdmin ? 'Todas las Sugerencias' : 'Mis Sugerencias'}
+        </h2>
+        {sugerencias.length === 0 ? (
           <div className="bg-gray-200 rounded-2xl p-12 text-center border-2 border-gray-300">
-            <MessageSquare size={48} className="mx-auto text-slate-400 mb-4" />
-            <p className="text-slate-500">No hay sugerencias registradas</p>
+            <p className="text-slate-500">No hay sugerencias aún</p>
           </div>
         ) : (
-          filteredSuggestions.map(suggestion => {
-            const house = state.houses.find(h => h.id === suggestion.houseId);
-            
-            return (
-              <div key={suggestion.id} className="bg-gray-200 rounded-2xl p-6 border-2 border-gray-300 hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-yellow-500 w-12 h-12 rounded-xl flex items-center justify-center text-white shrink-0">
-                      <MessageSquare size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800">
-                        {house ? house.name : 'Administrador'}
-                      </h3>
-                      <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-                        <Clock size={14} />
-                        {new Date(suggestion.date).toLocaleDateString('es-ES', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                      {isAdmin && suggestion.ipAddress && (
-                        <p className="text-xs text-slate-500 mt-1">IP: {suggestion.ipAddress}</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <StatusBadge status={suggestion.status} />
+          sugerencias.map((sug: any) => (
+            <div key={sug.id} className="bg-gray-200 rounded-2xl p-6 border-2 border-gray-300">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  {isAdmin && (
+                    <p className="font-bold text-slate-800">{sug.perfiles?.nombre} — {sug.perfiles?.casa_numero}</p>
+                  )}
+                  <p className="text-xs text-slate-500">{new Date(sug.created_at).toLocaleDateString('es-ES')}</p>
                 </div>
-
-                <p className="text-slate-700 leading-relaxed mb-4 ml-15">{suggestion.message}</p>
-
-                {isAdmin && (
-                  <div className="flex gap-2 ml-15 flex-wrap">
-                    {suggestion.status !== 'reviewed' && (
-                      <button
-                        onClick={() => onUpdateStatus(suggestion.id, 'reviewed')}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-bold transition-all"
-                      >
-                        Marcar como Revisado
-                      </button>
-                    )}
-                    {suggestion.status !== 'resolved' && (
-                      <button
-                        onClick={() => onUpdateStatus(suggestion.id, 'resolved')}
-                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold transition-all"
-                      >
-                        Marcar como Resuelto
-                      </button>
-                    )}
-                    {suggestion.status !== 'pending' && (
-                      <button
-                        onClick={() => onUpdateStatus(suggestion.id, 'pending')}
-                        className="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-bold transition-all"
-                      >
-                        Marcar como Pendiente
-                      </button>
-                    )}
-                  </div>
-                )}
+                <span className={`text-xs font-bold px-3 py-1 rounded-full ${getEstadoColor(sug.estado)}`}>
+                  {getEstadoLabel(sug.estado)}
+                </span>
               </div>
-            );
-          })
+
+              <div className="bg-white rounded-xl p-4 border border-gray-300 mb-3">
+                <p className="text-slate-700">{sug.mensaje}</p>
+              </div>
+
+              {sug.respuesta && (
+                <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200 mb-3">
+                  <p className="text-xs font-bold text-yellow-700 mb-1">Respuesta de la administración:</p>
+                  <p className="text-slate-700">{sug.respuesta}</p>
+                </div>
+              )}
+
+              {isAdmin && sug.estado !== 'respondido' && (
+                <div className="space-y-2 mt-3">
+                  {sug.estado === 'pendiente' && (
+                    <button
+                      onClick={() => marcarLeido(sug.id)}
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-bold"
+                    >
+                      <Eye size={14} /> Marcar como leído
+                    </button>
+                  )}
+                  <textarea
+                    value={respuesta[sug.id] || ''}
+                    onChange={(e) => setRespuesta(r => ({ ...r, [sug.id]: e.target.value }))}
+                    className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-yellow-500 focus:outline-none bg-white min-h-[80px] resize-none"
+                    placeholder="Escribe una respuesta..."
+                  />
+                  <button
+                    onClick={() => responderSugerencia(sug.id)}
+                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 text-sm"
+                  >
+                    <Send size={14} /> Responder
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
     </div>
-  );
-};
-
-const StatusBadge: React.FC<{ status: 'pending' | 'reviewed' | 'resolved' }> = ({ status }) => {
-  const config = {
-    pending: { bg: 'bg-amber-100', text: 'text-amber-800', icon: <Clock size={14} />, label: 'Pendiente' },
-    reviewed: { bg: 'bg-blue-100', text: 'text-blue-800', icon: <CheckCircle size={14} />, label: 'Revisado' },
-    resolved: { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: <CheckCircle size={14} />, label: 'Resuelto' }
-  };
-
-  const { bg, text, icon, label } = config[status];
-
-  return (
-    <span className={`${bg} ${text} px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2`}>
-      {icon}
-      {label}
-    </span>
   );
 };
 
