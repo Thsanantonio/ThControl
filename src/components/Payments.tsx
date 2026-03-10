@@ -238,9 +238,32 @@ const Payments: React.FC<PaymentsProps> = ({ state, onAddPayment, onDeletePaymen
                     <p className="text-xs text-slate-500">USD</p>
                   </div>
                   {isAdmin && (
-                    <button onClick={() => onDeletePayment(payment.id)} className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl">
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      {(payment.estado === 'pendiente' || !payment.estado) && (
+                        <>
+                          <button
+                            onClick={() => onDeletePayment(payment.id + '|verificado')}
+                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-bold"
+                          >
+                            ✓ Verificar
+                          </button>
+                          <button
+                            onClick={() => onDeletePayment(payment.id + '|rechazado')}
+                            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold"
+                          >
+                            ✗ Rechazar
+                          </button>
+                        </>
+                      )}
+                      {payment.estado && payment.estado !== 'pendiente' && (
+                        <button
+                          onClick={() => onDeletePayment(payment.id)}
+                          className="p-3 bg-gray-400 hover:bg-gray-500 text-white rounded-xl"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
