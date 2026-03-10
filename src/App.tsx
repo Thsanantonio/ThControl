@@ -7,7 +7,8 @@ import Payments from './components/Payments';
 import Expenses from './components/Expenses';
 import Reports from './components/Reports';
 import Suggestions from './components/Suggestions';
-import { LayoutDashboard, Receipt, ShoppingCart, BarChart3, LogOut, MessageSquare } from 'lucide-react';
+import Perfil from './components/Perfil';
+import { LayoutDashboard, Receipt, ShoppingCart, BarChart3, LogOut, MessageSquare, User } from 'lucide-react';
 
 const API_URL = (import.meta.env?.VITE_API_URL || 'https://thcontrol.es') as string;
 
@@ -130,6 +131,9 @@ const App: React.FC = () => {
       formData.append('monto', String(e.amount));
       formData.append('categoria', e.category || 'general');
       formData.append('fecha_gasto', e.date || new Date().toISOString().split('T')[0]);
+      if (e.invoiceUrl && (e.invoiceUrl as any) instanceof File) {
+        formData.append('factura', e.invoiceUrl as any);
+      }
       const res = await fetch(`${API_URL}/api/gastos`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -172,6 +176,7 @@ const App: React.FC = () => {
             )}
             <NavItem active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} icon={<BarChart3 size={20} />} label="Reportes" />
             <NavItem active={activeTab === 'suggestions'} onClick={() => setActiveTab('suggestions')} icon={<MessageSquare size={20} />} label="Buzón" />
+            <NavItem active={activeTab === 'perfil'} onClick={() => setActiveTab('perfil')} icon={<User size={20} />} label="Mi Perfil" />
           </nav>
         </div>
         <div className="mt-auto p-6 border-t border-gray-300">
@@ -199,6 +204,7 @@ const App: React.FC = () => {
             {activeTab === 'expenses' && <Expenses state={state} onAddExpense={addExpense} isAdmin={state.user.role === UserRole.ADMIN} />}
             {activeTab === 'reports' && <Reports state={state} />}
             {activeTab === 'suggestions' && <Suggestions state={state} onAddSuggestion={addSuggestion} onUpdateStatus={updateSuggestion} />}
+            {activeTab === 'perfil' && <Perfil token={token!} apiUrl={API_URL} />}
           </>
         )}
       </main>
@@ -210,6 +216,7 @@ const App: React.FC = () => {
           <MobileNavItem active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} icon={<ShoppingCart size={24} />} />
         )}
         <MobileNavItem active={activeTab === 'suggestions'} onClick={() => setActiveTab('suggestions')} icon={<MessageSquare size={24} />} />
+        <MobileNavItem active={activeTab === 'perfil'} onClick={() => setActiveTab('perfil')} icon={<User size={24} />} />
       </nav>
     </div>
   );
