@@ -209,14 +209,15 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-200 border-t border-gray-300 flex justify-around p-2 z-50 shadow-2xl">
-        <MobileNavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} />
-        <MobileNavItem active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<Receipt size={24} />} />
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-200 border-t border-gray-300 flex justify-around p-2 z-50 shadow-2xl overflow-x-auto">
+        <MobileNavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={22} />} label="Inicio" />
+        <MobileNavItem active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<Receipt size={22} />} label="Pagos" />
         {state.user.role === UserRole.ADMIN && (
-          <MobileNavItem active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} icon={<ShoppingCart size={24} />} />
+          <MobileNavItem active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} icon={<ShoppingCart size={22} />} label="Gastos" />
         )}
-        <MobileNavItem active={activeTab === 'suggestions'} onClick={() => setActiveTab('suggestions')} icon={<MessageSquare size={24} />} />
-        <MobileNavItem active={activeTab === 'perfil'} onClick={() => setActiveTab('perfil')} icon={<User size={24} />} />
+        <MobileNavItem active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} icon={<BarChart3 size={22} />} label="Reportes" />
+        <MobileNavItem active={activeTab === 'suggestions'} onClick={() => setActiveTab('suggestions')} icon={<MessageSquare size={22} />} label="Buzón" />
+        <MobileNavItem active={activeTab === 'perfil'} onClick={() => setActiveTab('perfil')} icon={<User size={22} />} label="Perfil" />
       </nav>
     </div>
   );
@@ -226,8 +227,11 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.Reac
   <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl text-sm font-bold transition-all ${active ? 'bg-yellow-500 text-white shadow-lg' : 'text-slate-500 hover:bg-gray-300'}`}>{icon}{label}</button>
 );
 
-const MobileNavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode }> = ({ active, onClick, icon }) => (
-  <button onClick={onClick} className={`p-4 rounded-2xl transition-all ${active ? 'text-yellow-500 bg-yellow-50 scale-110' : 'text-slate-400'}`}>{icon}</button>
+const MobileNavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] ${active ? 'text-yellow-500 bg-yellow-50' : 'text-slate-400'}`}>
+    {icon}
+    <span className="text-xs font-bold">{label}</span>
+  </button>
 );
 
 export default App;
